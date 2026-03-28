@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wisp Protected App</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f3efe7;
+            --panel: rgba(255, 255, 255, 0.84);
+            --ink: #19150f;
+            --muted: #685f53;
+            --border: rgba(25, 21, 15, 0.1);
+            --accent: #1f5eff;
+            --accent-soft: rgba(31, 94, 255, 0.12);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Segoe UI", sans-serif;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at top right, rgba(31, 94, 255, 0.1), transparent 28%),
+                radial-gradient(circle at bottom left, rgba(27, 167, 134, 0.12), transparent 24%),
+                linear-gradient(180deg, #f8f4ea 0%, var(--bg) 100%);
+        }
+
+        main {
+            width: min(920px, calc(100% - 32px));
+            margin: 48px auto;
+        }
+
+        .hero {
+            display: flex;
+            justify-content: space-between;
+            gap: 24px;
+            align-items: flex-start;
+            margin-bottom: 24px;
+        }
+
+        .hero h1 {
+            margin: 0 0 8px;
+            font-size: clamp(28px, 5vw, 46px);
+            line-height: 1;
+            letter-spacing: -0.04em;
+        }
+
+        .hero p {
+            margin: 0;
+            max-width: 560px;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        button,
+        a.button-link {
+            border: none;
+            border-radius: 999px;
+            padding: 12px 18px;
+            font: inherit;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .primary {
+            background: var(--ink);
+            color: #ffffff;
+        }
+
+        .secondary {
+            background: var(--panel);
+            color: var(--ink);
+            border: 1px solid var(--border);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 18px 42px rgba(35, 29, 21, 0.06);
+        }
+
+        .card h2 {
+            margin: 0 0 14px;
+            font-size: 14px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        .kv {
+            display: grid;
+            gap: 10px;
+        }
+
+        .kv div {
+            padding: 10px 12px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(25, 21, 15, 0.06);
+        }
+
+        .kv strong {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 12px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .status {
+            margin-top: 18px;
+            padding: 14px 16px;
+            border-radius: 18px;
+            background: var(--accent-soft);
+            color: #13378c;
+            border: 1px solid rgba(31, 94, 255, 0.14);
+        }
+
+        code {
+            font-family: Consolas, monospace;
+        }
+
+        @media (max-width: 640px) {
+            .hero {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <section class="hero">
+            <div>
+                <h1>Protected Test App</h1>
+                <p>This page verifies the JWT saved by Wisp, reads the session details from the backend, and lets you log out by clearing the server-side token and local storage.</p>
+            </div>
+            <div class="actions">
+                <a class="button-link secondary" href="./login.html">Back to login</a>
+                <button class="primary" id="logout-button" type="button">Log out</button>
+            </div>
+        </section>
+
+        <section class="grid">
+            <article class="card">
+                <h2>Session</h2>
+                <div class="kv">
+                    <div>
+                        <strong>User</strong>
+                        <span id="session-user">Checking session...</span>
+                    </div>
+                    <div>
+                        <strong>Email</strong>
+                        <span id="session-email">Checking session...</span>
+                    </div>
+                    <div>
+                        <strong>Client</strong>
+                        <span id="session-client">Checking session...</span>
+                    </div>
+                    <div>
+                        <strong>Expires</strong>
+                        <span id="session-expiry">Checking session...</span>
+                    </div>
+                </div>
+            </article>
+
+            <article class="card">
+                <h2>How This Works</h2>
+                <div class="kv">
+                    <div>
+                        <strong>Token Source</strong>
+                        <span>The page reads <code>wispToken</code> from local storage.</span>
+                    </div>
+                    <div>
+                        <strong>Verification</strong>
+                        <span>The backend validates the JWT and checks it matches the saved token in SQLite.</span>
+                    </div>
+                    <div>
+                        <strong>Logout</strong>
+                        <span>The logout button calls <code>/api/logout</code> to clear the active token.</span>
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        <div class="status" id="status-message">Verifying your session with the Wisp backend...</div>
+    </main>
+
+    <script src="./app.js"></script>
+</body>
+</html>

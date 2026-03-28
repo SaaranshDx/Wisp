@@ -3,15 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Create account</title>
+    <title>Login</title>
     <style>
         body {
             margin: 0;
             min-height: 100vh;
             display: grid;
             place-items: center;
-            background: linear-gradient(180deg, #f7f4ed 0%, #ece7dc 100%);
-            color: #181611;
+            background:
+                radial-gradient(circle at top left, rgba(220, 208, 185, 0.75), transparent 35%),
+                linear-gradient(180deg, #f4f1ea 0%, #e5dfd2 100%);
+            color: #1c1710;
             font-family: "Segoe UI", sans-serif;
         }
 
@@ -20,8 +22,8 @@
             top: 20px;
             left: 20px;
             padding: 12px 14px;
-            background: rgba(255, 255, 255, 0.85);
-            border: 1px solid rgba(24, 22, 17, 0.12);
+            background: rgba(255, 255, 255, 0.84);
+            border: 1px solid rgba(28, 23, 16, 0.12);
             border-radius: 14px;
             max-width: 280px;
             backdrop-filter: blur(12px);
@@ -45,12 +47,21 @@
 </head>
 <body>
     <aside class="page-note">
-        <h1>Wisp Test App</h1>
-        <p>Create an account here, then Wisp will pass a JWT into the login page and the protected app will verify it with the backend. You can also jump to <a href="./login.html">login</a>.</p>
+        <h1>Login Step</h1>
+        <p>This page hosts the Wisp login widget. When login succeeds, or when a `?token=` from create-account is verified, it forwards you into the protected app.</p>
     </aside>
-    <script src="../src/public/createacc.js"></script>
+    <script src="../src/public/login.js"></script>
     <script>
         const wispconfig = "wisp/config.json";
+
+        document.addEventListener("wisp:login-success", () => {
+            window.location.replace("./app.html");
+        });
+
+        document.addEventListener("wisp:token-verified", () => {
+            window.location.replace("./app.html");
+        });
+
         initialisewisp(wispconfig);
     </script>
 </body>

@@ -1,4 +1,8 @@
-function injectcreateaccountscreen() {
+let loginpage;
+let createaccountpage;
+let wispConfigPromise = null;
+
+function initialisewisp(configSource) {
   if (!document.getElementById("wisp-createacc-styles")) {
     document.head.insertAdjacentHTML(
       "beforeend",
@@ -156,7 +160,7 @@ function injectcreateaccountscreen() {
       <input type="password" id="createacc-confirm-password" placeholder="Repeat your password" />
     </div>
 
-    <button class="createacc-btn" onclick="createaccount()">Create account</button>
+    <button type="button" class="createacc-btn" id="createacc-submit">Create account</button>
 
     <div class="createacc-footer">
       Powered by <span><a href="https://wisp.dev" target="_blank">wisp</a></span>
@@ -165,16 +169,71 @@ function injectcreateaccountscreen() {
 </div>`
   );
 
+  const createAccountButton = document.getElementById("createacc-submit");
+  if (createAccountButton && !createAccountButton.dataset.bound) {
+    createAccountButton.addEventListener("click", async (event) => {
+      event.preventDefault();
+      await wispcreateaccount();
+    });
+    createAccountButton.dataset.bound = "true";
+  }
+
+  wispConfigPromise = parsewispconfig(configSource);
+  return wispConfigPromise;
+
 }
 
 function getcurrenturl() {
-  let currentURL = window.location.href;
+  let currentURL = window.location.origin;
   return currentURL;
 }
 
 origin = getcurrenturl();
 
+async function parsewispconfig(configSource = globalThis.wispconfig) {
+  try {
+    if (!configSource) {
+      return null;
+    }
+
+    let cfg;
+
+    if (typeof configSource === "string") {
+      const trimmedConfigSource = configSource.trim();
+
+      if (trimmedConfigSource.startsWith("{")) {
+        cfg = JSON.parse(trimmedConfigSource);
+      } else {
+        const response = await fetch(trimmedConfigSource);
+
+        if (!response.ok) {
+          throw new Error(`Unable to load config from ${trimmedConfigSource}`);
+        }
+
+        cfg = await response.json();
+      }
+    } else if (typeof configSource === "object") {
+      cfg = configSource;
+    } else {
+      throw new Error("Config must be a JSON string, object, or path to a JSON file.");
+    }
+
+    loginpage = cfg.loginpage;
+    createaccountpage = cfg.createaccountpage;
+
+    return cfg;
+  } catch (error) {
+    console.error("Failed to parse wisp config:", error);
+    alert("Error: Invalid configuration. Please check the console for details.");
+    return null;
+  }
+}
+
 async function wispcreateaccount() {
+  if (!loginpage) {
+    await (wispConfigPromise ?? parsewispconfig());
+  }
+
   const username = document.getElementById("createacc-username")?.value.trim();
   const email = document.getElementById("createacc-email")?.value.trim();
   const password = document.getElementById("createacc-password")?.value;
@@ -208,12 +267,17 @@ try {
       alert(`Error: ${errorData.message || 'Failed to create account.'}`);
       return null;
     } else {
+      if (!loginpage) {
+        alert("Error: Missing login page in wisp config.");
+        return null;
+      }
+
       const token = data.token;
-      window.location.replace(`${verificationURL}?token=${token}`);
+      window.location.replace(`${loginpage}?token=${token}`);
+      return token;
     }
 } catch (error) {
   alert(`Network error: ${error.message}`);
   return null; 
 }
 }
-
