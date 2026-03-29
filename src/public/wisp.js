@@ -460,6 +460,9 @@ try {
       }
 
       const token = data.token;
+      //window.location.replace(`${loginpage}?token=${token}`);
+      document.cookie = `token=${token}; path=/`;
+      console.log("Token saved:", token);
       window.location.replace(`${loginpage}?token=${token}`);
       return token;
     }
