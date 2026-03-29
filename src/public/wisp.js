@@ -486,11 +486,20 @@ try {
     const result = await fetch(`${wispapiurl}/api/login`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        "origin": origin
+      "Content-Type": "application/json",
+      "origin": origin
       },
       body: JSON.stringify({ username, password })
     });
+
+    const data = await result.json();
+    
+    if (result.ok && data.token) {
+      document.cookie = `token=${data.token}; path=/`;
+      console.log("Token saved:", data.token);
+    } else {
+      alert("Login failed: " + (data.message || "Invalid credentials"));
+    }
   } catch (error) {
     console.error("Login failed:", error);
     alert("An error occurred during login. Please check the console for details.");
