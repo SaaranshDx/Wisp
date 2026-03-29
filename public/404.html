@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Wisp</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #000;
+      color: white;
+      overflow-x: hidden;
+    }
+
+    .announcement-bar {
+      position: fixed;
+      top: 14px;
+      left: 12px;
+      right: 12px;
+      z-index: 10;
+      overflow: hidden;
+      background: #fff;
+      border-radius: 8px;
+      white-space: nowrap;
+    }
+
+    .announcement-track {
+      display: flex;
+      width: max-content;
+      animation: marquee 14s linear infinite;
+    }
+
+    .announcement-text {
+      display: flex;
+      align-items: center;
+      gap: 26px;
+      flex: 0 0 auto;
+      box-sizing: border-box;
+      padding: 10px 0 10px 24px;
+      color: #000;
+      font-family: Arial, sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+    }
+
+    .announcement-text span {
+      flex: 0 0 auto;
+    }
+
+    .announcement-text span::after {
+      content: "·";
+      margin-left: 28px;
+    }
+
+    .announcement-text span:last-child::after {
+      content: "";
+      margin-left: 0;
+    }
+
+    @keyframes marquee {
+      from { transform: translateX(0); }
+      to   { transform: translateX(-50%); }
+    }
+
+    /* ── HERO ── */
+    .hero {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      text-align: center;
+    }
+
+    .bg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 120%;
+      background: #000;
+      z-index: -1;
+      transform: translateY(0);
+    }
+
+    .top-link {
+      position: absolute;
+      top: 78px;
+      right: 36px;
+      color: #6f6f73;
+      text-decoration: none;
+      font-size: 18px;
+      font-weight: 400;
+      letter-spacing: 0.2px;
+      transition: color 0.2s ease;
+    }
+
+    .top-link:hover { color: #a1a1a6; }
+
+    .top-link span {
+      margin-left: 4px;
+      font-size: 16px;
+    }
+
+    .bottom-links {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      gap: 14px;
+      padding: 28px 36px;
+      background: #000;
+    }
+
+    .bottom-link {
+      color: #6f6f73;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 400;
+      letter-spacing: 0.2px;
+      transition: color 0.2s ease;
+    }
+
+    .bottom-link:hover { color: #a1a1a6; }
+
+    .top-logo {
+      position: absolute;
+      top: 78px;
+      left: 36px;
+      width: 56px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .top-logo svg {
+      width: 32px;
+      height: 32px;
+      display: block;
+      fill: #fff;
+    }
+
+    h1 {
+      font-size: 64px;
+      margin: 0;
+    }
+
+    p {
+      color: #aaa;
+      margin-top: 10px;
+    }
+
+    .btn {
+      margin-top: 25px;
+      padding: 12px 50px;
+      background: #000000;
+      border-radius: 500px;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+      border: 1px solid #000000;
+      color: rgb(255, 255, 255);
+      cursor: pointer;
+      font-size: 15px;
+      transition: border-color 0.2s ease;
+    }
+
+
+    /* ── SECTION (outside .hero) ── */
+    .section {
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #000;
+      font-size: 30px;
+    }
+  </style>
+</head>
+
+<body>
+
+
+  <!-- Hero — contains only hero elements -->
+  <div class="hero">
+    <div class="bg" id="bg"></div>
+
+
+    <h1 style="font-weight: 300; letter-spacing: 2px;">404</h1>
+    <p>Looks like you are lost BBG ;)</p>
+    <button class="btn" onclick="window.history.back()">Go back</button>
+
+  </div>
+
+  <!-- Section — correctly OUTSIDE .hero -->
+
+  <script>
+  </script>
+
+</body>
+</html>
