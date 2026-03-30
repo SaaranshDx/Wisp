@@ -629,47 +629,6 @@ try {
   }
 }
 
-async function verifytokenvalidation({ silent = true } = {}) {
-  if (!wispapiurl) {
-    await (wispConfigPromise ?? parsewispconfig());
-  }
-
-  const token = fetchtokenfromcookies();
-
-  if (!token) {
-    handlebackenderror("Missing Bearer token", {
-      fallbackMessage: "Missing Bearer token",
-      silent,
-    });
-    return false;
-  }
-
-  try {
-    const { response, data, message } = await wisprequest("/api/verify-token", {
-      method: "GET",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "origin": origin
-      }
-    }, {
-      fallbackMessage: "Unable to verify token.",
-    });
-
-    if (!response.ok) {
-      handlebackenderror(message, { fallbackMessage: "Unable to verify token.", silent });
-      return false;
-    }
-
-    return data?.valid === true;
-  } catch (err) {
-    if (!silent) {
-      alert(`Network error: ${err.message}`);
-    }
-    console.error("Token verification failed:", err);
-    return false;
-  }
-}
-
 async function wisplogout({ silent = false, redirectToLogin = false } = {}) {
   if (!wispapiurl) {
     await (wispConfigPromise ?? parsewispconfig());
