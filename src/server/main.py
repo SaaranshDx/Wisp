@@ -23,8 +23,16 @@ app = Flask(__name__)
 CORS(app)
 
 #initialize the url map for verification
-with open(URL_MAP_PATH, encoding="utf-8") as f:
-    URL_MAP = json.load(f)
+def load_url_map():
+    with open(URL_MAP_PATH, encoding="utf-8") as f:
+        return json.load(f)
+
+def save_url_map(data):
+    with open(URL_MAP_PATH, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+
+
+URL_MAP = url_map = load_url_map()
 
 
 def validate_client_request():
@@ -317,12 +325,16 @@ def get_company():
     
     return jsonify({"company_id": company_id})
     
-@app.route('/api/get-username', methods=['GET'])
+@app.route('/api/me', methods=['GET'])
 @jwt_required
-def get_username():
-    return jsonify({"username": g.jwt_payload.get("user_id")})
-
+def me():
+    return jsonify({
+        "username": g.jwt_payload.get("user_id"),
+        "email": g.jwt_payload.get("email"),
+        "company_id": g.company_id
+    })
 
 
 if __name__ == '__main__':
     app.run(debug=True)
+
