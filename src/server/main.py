@@ -378,6 +378,7 @@ def delete_origin():
 
     return jsonify({"message": "Origin deleted"})
 
+
 if __name__ == '__main__':
     app.run(debug=True)
 

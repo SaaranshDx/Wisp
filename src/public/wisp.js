@@ -688,10 +688,6 @@ async function wisplogout({ silent = false, redirectToLogin = false } = {}) {
   }
 }
 
-async function keyvalidationcheck() {
-  const tokenIsValid = await verifytokenvalidation();
-  return tokenIsValid;
-}
 
 const token = fetchtoken();
 
