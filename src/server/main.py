@@ -32,7 +32,7 @@ def save_url_map(data):
         json.dump(data, f, indent=2)
 
 
-URL_MAP = url_map = load_url_map()
+#URL_MAP = url_map = load_url_map()
 
 
 def validate_client_request():
@@ -40,6 +40,9 @@ def validate_client_request():
 
     if not origin:
         return None, jsonify({"message": "Missing origin header"}), 403
+
+    
+    URL_MAP = load_url_map()
 
     # Find the company whose allowed origin matches the request origin
     company_id = next(
@@ -334,6 +337,46 @@ def me():
         "company_id": g.company_id
     })
 
+@app.route('/api/dashboard', methods=['GET'])
+@jwt_required
+def dashboard():
+    url_map = load_url_map()
+    origin = url_map.get(g.company_id)
+
+    return jsonify({
+        "username": g.jwt_payload.get("user_id"),
+        "company_id": g.company_id,
+        "origin": origin
+    })
+
+@app.route('/api/origin', methods=['POST'])
+@jwt_required
+def set_origin():
+    data = request.get_json()
+    new_origin = data.get("origin")
+
+    if not new_origin:
+        return jsonify({"message": "Origin required"}), 400
+
+    url_map = load_url_map()
+    url_map[g.company_id] = new_origin
+    save_url_map(url_map)
+
+    return jsonify({
+        "message": "Origin saved",
+        "origin": new_origin
+    })
+
+@app.route('/api/origin', methods=['DELETE'])
+@jwt_required
+def delete_origin():
+    url_map = load_url_map()
+
+    if g.company_id in url_map:
+        del url_map[g.company_id]
+        save_url_map(url_map)
+
+    return jsonify({"message": "Origin deleted"})
 
 if __name__ == '__main__':
     app.run(debug=True)
