@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from functools import wraps
+from random import random
 
 from flask import Flask, json, request, jsonify, g
 import bcrypt
@@ -9,6 +10,9 @@ from flask_cors import CORS
 import jwt
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
+import smtplib
+from email.message import EmailMessage
+
 
 BASE_DIR = Path(__file__).resolve().parent
 ENV_PATH = BASE_DIR / ".env"
@@ -18,6 +22,10 @@ URL_MAP_PATH = BASE_DIR / "urlverificationkey.json"
 load_dotenv(dotenv_path=ENV_PATH)
 JWT_SECRET = os.getenv("jwt_key")
 JWT_EXP_HOURS = int(os.getenv("jwt_exp_hours", "24"))
+EMAIL_ADDRESS = os.getenv("email_address")
+APP_PASSWORD = os.getenv("app_password") # Use the app password here
+
+verification_code = None
 
 app = Flask(__name__)
 CORS(app)
@@ -142,15 +150,12 @@ def init_db():
 
     #create the tables
     cursor.execute('''
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT NOT NULL,
+    CREATE TABLE sessions (
         email TEXT NOT NULL,
-        password_hash TEXT NOT NULL,
-        auth_token TEXT,
-        client_id TEXT NOT NULL,
-        UNIQUE(email, client_id)
-    );
+        company_id TEXT NOT NULL,
+        token TEXT NOT NULL,
+        PRIMARY KEY (email, company_id)
+    );                   
     ''')
 
     cursor.execute("PRAGMA table_info(users)")
@@ -378,6 +383,187 @@ def delete_origin():
 
     return jsonify({"message": "Origin deleted"})
 
+# here we would add the password less auth
+
+def load_url_map():
+    with open(URL_MAP_PATH, encoding="utf-8") as f:
+        return json.load(f)  # {"corp1": "https://a.com"}
+    
+def get_company_from_origin(origin: str):
+    if not origin:
+        return None
+
+    url_map = load_url_map()
+
+    for company_id, allowed_origin in url_map.items():
+        if allowed_origin == origin:
+            return company_id
+
+    return None
+
+def send_verification_email(to_email, verification_code, company_id):
+    msg = EmailMessage()
+    msg['Subject'] = 'verification code for logging into ' + company_id
+    msg['From'] = EMAIL_ADDRESS
+    msg['To'] = to_email
+
+    html_content = f"""
+    <html>
+        <body style="font-family: Arial, sans-serif;">
+            <h2>Hi i am Saaransh from the wisp team</h2>
+            <p>{company_id} requested a verification code</p>
+            <h1>{verification_code}</h1>
+            <p>If you didnt request this, ignore this email.</p>
+        </body>
+    </html>
+    """
+
+    msg.set_content(f"Your verification code is {verification_code}")
+    msg.add_alternative(html_content, subtype='html')
+
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+            smtp.login(EMAIL_ADDRESS, APP_PASSWORD)
+            smtp.send_message(msg)
+        return "Email sent successfully!"
+    except Exception as e:
+        print(f"Error: {e}")
+        return "Failed to send email"
+
+import jwt
+
+SECRET = os.getenv("jwt_key")
+
+def build_token(email, company_id):
+    payload = {
+        "email": email,
+        "company_id": company_id,
+        "exp": datetime.utcnow() + timedelta(days=7)
+    }
+    token = jwt.encode(payload, SECRET, algorithm="HS256")
+    return token
+
+def save_session(email, company_id, token):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    INSERT INTO sessions (email, company_id, token)
+    VALUES (?, ?, ?)
+    ON CONFLICT(email, company_id)
+    DO UPDATE SET token = excluded.token
+    """, (email, company_id, token))
+
+    conn.commit()
+    conn.close()
+
+def clear_session(email, company_id):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    DELETE FROM sessions WHERE email = ? AND company_id = ?
+    """, (email, company_id))
+
+    conn.commit()
+    conn.close()
+
+@app.route('/api/auth/magics', methods=['POST'])
+def send_magic_link():
+    origin = request.headers.get("origin")
+    company_id = get_company_from_origin(origin)
+
+    if not origin:
+        return jsonify({"message": "Missing origin header"}), 401
+
+    if not company_id:
+        return jsonify({"message": "Unauthorized origin"}), 401    
+
+    data = request.get_json()
+    email = data.get("email")
+
+    if not email:
+        return jsonify({"message": "Email required"}), 400
+
+    verification_code = str(random.randint(0, 999999)).zfill(6)
+
+    verification_store[email] = {
+        "code": verification_code,
+        "expires": datetime.utcnow() + timedelta(minutes=5),
+        "company_id": company_id
+    }
+
+    status = send_verification_email(email, verification_code, company_id)
+
+    return jsonify({"message": status})
+
+@app.route('/api/auth/magics/verify', methods=['POST'])
+def verify_magic():
+    origin = request.headers.get("origin")
+    company_id = get_company_from_origin(origin)
+
+    if not origin:
+        return jsonify({"message": "Missing origin header"}), 401
+
+    if not company_id:
+        return jsonify({"message": "Unauthorized origin"}), 401
+
+    data = request.get_json()
+    email = data.get("email")
+    code = data.get("code")
+
+    record = verification_store.get(email)
+
+    if not record:
+        return jsonify({"message": "No code found"}), 400
+
+    if record["company_id"] != company_id:
+        return jsonify({"message": "Company mismatch"}), 401
+
+    if record["expires"] < datetime.utcnow():
+        return jsonify({"message": "Code expired"}), 400
+
+    if record["code"] != code:
+        return jsonify({"message": "Invalid code"}), 401
+
+    # remove code
+    del verification_store[email]
+
+    # 🔥 create token
+    token = build_token(email, company_id)
+
+    # 🔥 save session
+    save_session(email, company_id, token)
+
+    return jsonify({"token": token})
+
+@app.route('/api/auth/logout', methods=['POST'])
+def logout():
+    origin = request.headers.get("origin")
+    company_id = get_company_from_origin(origin)
+
+    if not origin:
+        return jsonify({"message": "Missing origin header"}), 401
+
+    if not company_id:
+        return jsonify({"message": "Unauthorized origin"}), 401
+
+    auth_header = request.headers.get("Authorization")
+
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return jsonify({"message": "Missing token"}), 401
+
+    token = auth_header.split(" ")[1]
+
+    try:
+        payload = jwt.decode(token, SECRET, algorithms=["HS256"])
+        email = payload.get("email")
+    except:
+        return jsonify({"message": "Invalid token"}), 401
+
+    clear_session(email, company_id)
+
+    return jsonify({"message": "Logged out"})
 
 if __name__ == '__main__':
     app.run(debug=True)
