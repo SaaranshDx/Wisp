@@ -529,10 +529,8 @@ def verify_magic():
     # remove code
     del verification_store[email]
 
-    # 🔥 create token
     token = build_token(email, company_id)
 
-    # 🔥 save session
     save_session(email, company_id, token)
 
     return jsonify({"token": token})

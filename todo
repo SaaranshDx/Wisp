@@ -4,4 +4,5 @@
 #4 add token saving on client = done
 #5 add the logo on the ui injected by the sdk = done
 #6 fuck off
-#7 rewrite everything to get password less
+#7 rewrite everything to get password less = done
+#8 impliment the password less system into the sdk
