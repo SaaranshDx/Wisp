@@ -97,7 +97,7 @@ function initialisewisplogin(configSource) {
   }
 
   .login-card input[type="text"],
-  .login-card input[type="password"] {
+  .login-card input[type="email"] {
     width: 100%;
     box-sizing: border-box;
   }
@@ -165,22 +165,34 @@ function initialisewisplogin(configSource) {
       <span class="login-logo-name">wisp</span>
     </div>
 
-    <p class="login-heading">Welcome back</p>
-    <p class="login-sub">Sign in to your account to continue.</p>
+    <!-- Step 1: Email entry -->
+    <div id="wisp-login-step-email">
+      <p class="login-heading">Welcome back</p>
+      <p class="login-sub">Enter your email to receive a sign-in code.</p>
 
-    <div class="login-field">
-      <label class="login-label" for="username">Username</label>
-      <input  class="input" type="text" id="username" placeholder="your_username" />
+      <div class="login-field">
+        <label class="login-label" for="login-email">Email</label>
+        <input class="input" type="email" id="login-email" placeholder="you@example.com" />
+      </div>
+
+      <a href="createaccount.html" style="font-size: 12px; color: var(--color-text-secondary); margin-bottom: 1.5rem; display: inline-block;">Don't have an account? Create one</a>
+
+      <button type="button" class="login-btn" id="wisp-login-send-code">Send code</button>
     </div>
 
-    <div class="login-field">
-      <label class="login-label" for="password">Password</label>
-      <input class="input" type="password" id="password" placeholder="********" />
+    <!-- Step 2: Code verification (hidden until code is sent) -->
+    <div id="wisp-login-step-verify" style="display: none;">
+      <p class="login-heading">Check your email</p>
+      <p class="login-sub">We sent a 6-digit code to <strong id="wisp-login-email-display"></strong>. It expires in 5 minutes.</p>
+
+      <div class="login-field">
+        <label class="login-label" for="login-code">Verification code</label>
+        <input class="input" type="text" id="login-code" placeholder="000000" maxlength="6" inputmode="numeric" />
+      </div>
+
+      <button type="button" class="login-btn" id="wisp-login-submit">Verify & sign in</button>
+      <button type="button" class="login-btn" id="wisp-login-back" style="margin-top: 0.5rem; background: transparent; color: var(--color-text-secondary); border: 1px solid var(--color-border-tertiary);">Back</button>
     </div>
-
-    <a href="createaccount.html" style="font-size: 12px; color: var(--color-text-secondary); margin-bottom: 1.5rem; display: inline-block;">Don't have an account? Create one</a>
-
-    <button type="button" class="login-btn" id="wisp-login-submit">Sign in</button>
 
     <div class="login-footer">
       Powered by <a href="https://wispproject.netlify.app" target="_blank"><span>wisp</span></a>
@@ -191,6 +203,17 @@ function initialisewisplogin(configSource) {
     );
   }
 
+  // Send code button — transitions to step 2
+  const sendCodeButton = document.getElementById("wisp-login-send-code");
+  if (sendCodeButton && !sendCodeButton.dataset.bound) {
+    sendCodeButton.addEventListener("click", async (event) => {
+      event.preventDefault();
+      await wispsendcode();
+    });
+    sendCodeButton.dataset.bound = "true";
+  }
+
+  // Verify button — submits code
   const loginButton = document.getElementById("wisp-login-submit");
   if (loginButton && !loginButton.dataset.bound) {
     loginButton.addEventListener("click", async (event) => {
@@ -198,6 +221,16 @@ function initialisewisplogin(configSource) {
       await wisplogin();
     });
     loginButton.dataset.bound = "true";
+  }
+
+  // Back button — returns to step 1
+  const backButton = document.getElementById("wisp-login-back");
+  if (backButton && !backButton.dataset.bound) {
+    backButton.addEventListener("click", () => {
+      document.getElementById("wisp-login-step-verify").style.display = "none";
+      document.getElementById("wisp-login-step-email").style.display = "";
+    });
+    backButton.dataset.bound = "true";
   }
 
   wispConfigPromise = parsewispconfig(configSource);
@@ -285,8 +318,7 @@ function initialisewispsignup(configSource) {
   }
 
   .createacc-card input[type="text"],
-  .createacc-card input[type="email"],
-  .createacc-card input[type="password"] {
+  .createacc-card input[type="email"] {
     width: 100%;
     box-sizing: border-box;
   }
@@ -363,16 +395,6 @@ function initialisewispsignup(configSource) {
     <div class="createacc-field">
       <label class="createacc-label" for="createacc-email">Email</label>
       <input class="input" type="email" id="createacc-email" placeholder="you@example.com" />
-    </div>
-
-    <div class="createacc-field">
-      <label class="createacc-label" for="createacc-password">Password</label>
-      <input class="input" type="password" id="createacc-password" placeholder="Create a password" />
-    </div>
-
-    <div class="createacc-field">
-      <label class="createacc-label" for="createacc-confirm-password">Confirm password</label>
-      <input class="input" type="password" id="createacc-confirm-password" placeholder="Repeat your password" />
     </div>
 
     <a href="login.html" style="font-size: 12px; color: var(--color-text-secondary); margin-bottom: 1.5rem; display: inline-block;">Already have an account? Sign in</a>
@@ -501,9 +523,11 @@ function handlebackenderror(message, { fallbackMessage, silent = false } = {}) {
       resolvedMessage = "Missing origin header. This frontend request is not sending a valid origin.";
       break;
     case "Unknown or unauthorized origin":
+    case "Unauthorized origin":
       resolvedMessage = "Unknown or unauthorized origin. This site is not allowed to use the configured Wisp backend.";
       break;
     case "Missing Bearer token":
+    case "Missing token":
       cleartokenfromcookies();
       resolvedMessage = "Missing Bearer token. Please log in again.";
       break;
@@ -532,11 +556,21 @@ function handlebackenderror(message, { fallbackMessage, silent = false } = {}) {
     case "User already exists":
       resolvedMessage = "User already exists. Try logging in instead.";
       break;
-    case "Username and password are required":
-      resolvedMessage = "Username and password are required.";
+    // Passwordless-specific errors
+    case "Email required":
+      resolvedMessage = "Email address is required.";
       break;
-    case "Invalid username or password":
-      resolvedMessage = "Invalid username or password.";
+    case "No code found":
+      resolvedMessage = "No verification code found for this email. Please request a new one.";
+      break;
+    case "Company mismatch":
+      resolvedMessage = "Verification code was issued for a different company. Please request a new code.";
+      break;
+    case "Code expired":
+      resolvedMessage = "Verification code has expired. Please request a new one.";
+      break;
+    case "Invalid code":
+      resolvedMessage = "Invalid verification code. Please check and try again.";
       break;
     default:
       break;
@@ -564,28 +598,21 @@ async function wispcreateaccount() {
 
   const username = document.getElementById("createacc-username")?.value.trim();
   const email = document.getElementById("createacc-email")?.value.trim();
-  const password = document.getElementById("createacc-password")?.value;
-  const confirmPassword = document.getElementById("createacc-confirm-password")?.value;
 
-  if (!username || !email || !password || !confirmPassword) {
+  if (!username || !email) {
     alert("Please fill in all fields.");
     return null;
   }
 
-  if (password !== confirmPassword) {
-    alert("Passwords do not match.");
-    return null;
-  }
-
-try {
+  try {
     const { response, data, message } = await wisprequest("/api/createaccount", {
       method: "POST",
-      headers: { 
+      headers: {
         "Content-Type": "application/json",
         "company-id": "test-corp",
-        "origin": origin  
+        "origin": origin
       },
-      body: JSON.stringify({ "username": username, "email": email, "password": password }),
+      body: JSON.stringify({ "username": username, "email": email }),
     }, {
       fallbackMessage: "Failed to create account.",
     });
@@ -600,55 +627,90 @@ try {
       return null;
     }
 
-    if (!data?.token) {
-      alert("Account created, but no token was returned by the backend.");
-      return null;
+    alert("Account created! Please sign in using the magic code sent to your email.");
+    window.location.replace(loginpage);
+    return true;
+  } catch (error) {
+    console.error("Create account failed:", error);
+    alert(`Network error: ${error.message}`);
+    return null;
+  }
+}
+
+// Step 1: Request a magic code to be sent to the user's email
+async function wispsendcode() {
+  if (!wispapiurl) {
+    await (wispConfigPromise ?? parsewispconfig());
+  }
+
+  const email = document.getElementById("login-email")?.value.trim();
+
+  if (!email) {
+    alert("Please enter your email address.");
+    return;
+  }
+
+  try {
+    const { response, data, message } = await wisprequest("/api/auth/magics", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "origin": origin
+      },
+      body: JSON.stringify({ email })
+    }, {
+      fallbackMessage: "Failed to send verification code.",
+    });
+
+    if (!response.ok) {
+      handlebackenderror(message, { fallbackMessage: "Failed to send verification code." });
+      return;
     }
 
-    const token = data.token;
-    settokenincookies(token);
-    console.log("Token saved:", token);
-    window.location.replace(`${loginpage}?token=${token}`);
-    return token;
-} catch (error) {
-  console.error("Create account failed:", error);
-  alert(`Network error: ${error.message}`);
-  return null; 
-}
+    // Transition UI to the code entry step
+    document.getElementById("wisp-login-email-display").textContent = email;
+    document.getElementById("wisp-login-step-email").style.display = "none";
+    document.getElementById("wisp-login-step-verify").style.display = "";
+    document.getElementById("login-code").focus();
+  } catch (error) {
+    console.error("Send code failed:", error);
+    alert(`Network error: ${error.message}`);
+  }
 }
 
+// Step 2: Verify the code and receive a JWT
 async function wisplogin() {
   if (!loginpage) {
     await (wispConfigPromise ?? parsewispconfig());
   }
 
+  const email = document.getElementById("login-email")?.value.trim();
+  const code = document.getElementById("login-code")?.value.trim();
 
-  const username = document.getElementById("username").value;
-  const password = document.getElementById("password").value;
-
-  if (!username || !password) {
-    alert("Please enter both username and password");
+  if (!email || !code) {
+    alert("Please enter your email and the verification code.");
     return;
   }
-try {
-    const { response, data, message } = await wisprequest("/api/login", {
+
+  try {
+    const { response, data, message } = await wisprequest("/api/auth/magics/verify", {
       method: "POST",
       headers: {
-      "Content-Type": "application/json",
-      "origin": origin
+        "Content-Type": "application/json",
+        "origin": origin
       },
-      body: JSON.stringify({ username, password })
+      body: JSON.stringify({ email, code })
     }, {
-      fallbackMessage: "Login failed.",
+      fallbackMessage: "Verification failed.",
     });
-    
+
     if (!response.ok) {
-      handlebackenderror(message, { fallbackMessage: "Login failed." });
+      handlebackenderror(message, { fallbackMessage: "Verification failed." });
       return "error";
     }
 
     if (!data?.token) {
-      alert("Login succeeded, but no token was returned by the backend.");
+      alert("Verification succeeded, but no token was returned by the backend.");
       return "error";
     }
 
@@ -659,7 +721,6 @@ try {
     } else {
       console.warn("No redirect page configured");
     }
-    //return data.token;
   } catch (error) {
     console.error("Login failed:", error);
     alert(`Network error: ${error.message}`);
@@ -672,7 +733,7 @@ async function wisplogout({ silent = false, redirectToLogin = false } = {}) {
     await (wispConfigPromise ?? parsewispconfig());
   }
 
-  const token = fetchtokenfromcookies();
+  const token = fetchtoken();
 
   if (!token) {
     handlebackenderror("Missing Bearer token", {
@@ -683,7 +744,7 @@ async function wisplogout({ silent = false, redirectToLogin = false } = {}) {
   }
 
   try {
-    const { response, data, message } = await wisprequest("/api/logout", {
+    const { response, data, message } = await wisprequest("/api/auth/logout", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${token}`,
@@ -722,6 +783,6 @@ async function wisplogout({ silent = false, redirectToLogin = false } = {}) {
 const token = fetchtoken();
 
 if (token) {
-  alert("You’re already logged in. Go touch the dashboard.");
+  alert("You're already logged in. Go touch the dashboard.");
   window.location.href = redirectpage || "dash.html";
 }

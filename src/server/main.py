@@ -143,30 +143,34 @@ def jwt_required(route_handler):
 
 
 def init_db():
-
-    #initialize the database connection
     conn = sqlite3.connect(DB_PATH, timeout=10.0)
     cursor = conn.cursor()
 
-    #create the tables
     cursor.execute('''
-    CREATE TABLE sessions (
-        email TEXT NOT NULL,
-        company_id TEXT NOT NULL,
-        token TEXT NOT NULL,
-        PRIMARY KEY (email, company_id)
-    );                   
+        CREATE TABLE IF NOT EXISTS sessions (
+            email TEXT NOT NULL,
+            company_id TEXT NOT NULL,
+            token TEXT NOT NULL,
+            PRIMARY KEY (email, company_id)
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            email TEXT PRIMARY KEY,
+            auth_token TEXT
+            -- add your other columns here
+        )
     ''')
 
     cursor.execute("PRAGMA table_info(users)")
     existing_columns = {row[1] for row in cursor.fetchall()}
-
     if "auth_token" not in existing_columns:
         cursor.execute("ALTER TABLE users ADD COLUMN auth_token TEXT")
 
     conn.commit()
     conn.close()
-    
+
 init_db()
 
 
@@ -319,11 +323,6 @@ def verify_token():
     })
 
 
-@app.route('/api/logout', methods=['POST'])
-@jwt_required
-def logout():
-    clear_user_token(g.jwt_payload.get("email"), g.company_id)
-    return jsonify({"message": "Logged out"})
 
 @app.route('/api/get-company', methods=['GET'])
 def get_company():
